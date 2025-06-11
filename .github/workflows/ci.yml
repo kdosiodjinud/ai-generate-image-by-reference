@@ -1,0 +1,33 @@
+name: Test and Code Quality
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧰 Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, json
+          coverage: none
+
+      - name: 📦 Install dependencies
+        run: composer install --no-progress --prefer-dist
+
+      - name: ✅ Run PHPUnit
+        run: vendor/bin/phpunit
+
+      - name: 🧽 Run ECS (Easy Coding Standard)
+        run: vendor/bin/php-cs-fixer fix --diff
