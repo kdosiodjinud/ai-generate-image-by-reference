@@ -2,6 +2,8 @@
 
 A PHP library to generate images in the style of a reference image using the OpenAI Image API.
 
+[![Test and Code Quality](https://github.com/kdosiodjinud/ai-generate-image-by-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/kdosiodjinud/ai-generate-image-by-reference/actions/workflows/ci.yml)
+
 ---
 
 ## ⚙️ Installation
