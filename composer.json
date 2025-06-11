@@ -1,0 +1,23 @@
+{
+    "name": "kdosiodjinud/ai-generate-image-by-reference",
+    "autoload": {
+        "psr-4": {
+            "AiGenerateImageByReference\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AiGenerateImageByReference\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "guzzlehttp/guzzle": "^7.9",
+        "ext-fileinfo": "*",
+        "psr/log": "^3.0"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest",
+        "phpunit/phpunit": "^12.2",
+        "friendsofphp/php-cs-fixer": "^3.75"
+    }
+}
