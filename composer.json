@@ -1,6 +1,7 @@
 {
     "name": "kdosiodjinud/ai-generate-image-by-reference",
     "description": "Generate images using OpenAI with style reference",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "AiGenerateImageByReference\\": "src/"
