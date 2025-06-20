@@ -131,7 +131,7 @@ class AiGenerateImageByReference
         // Add reference images
         foreach ($imageUrls as $imageUrl) {
             $basename = basename($imageUrl);
-            $contentType = mime_content_type($imageUrl) ?: 'image/png';
+            $contentType = 'image/png';
 
             $this->logger?->info('Image URL: ' . $imageUrl);
             $this->logger?->debug('- basename: ' . $basename);
