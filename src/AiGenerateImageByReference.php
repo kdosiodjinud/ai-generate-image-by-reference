@@ -33,15 +33,14 @@ class AiGenerateImageByReference
     ];
 
     private Client $client;
+    private string $imageStyle = '';
+    private array $imagesContent = [];
 
     public function __construct(
         private readonly string $openAiApiKey,
-        array $options = [],
         private readonly ?LoggerInterface $logger = null,
         ?Client $client = null
     ) {
-        $this->loadOptions($options);
-
         $this->client = $client ?? new Client([
             'base_uri' => self::API_ENDPOINT_BASE_URL,
             'timeout' => self::API_ENDPOINT_TIMEOUT,
@@ -49,15 +48,70 @@ class AiGenerateImageByReference
     }
 
     /**
+     * Set the style image that will be used as a reference for generating the final image.
+     */
+    public function setStyleImage(string $path): self
+    {
+        $this->imageStyle = $path;
+        $this->logger?->debug('Style image set to: ' . $path);
+
+        return $this;
+    }
+
+    /**
+     * Add a content image to the list of images that will be used to generate the final image.
+     */
+    public function addContentImage(string $path, string $description = ''): self
+    {
+        $this->imagesContent[] = [
+            'path' => $path,
+            'description' => $description,
+        ];
+
+        $this->logger?->debug('Content image added: ' . $path . ' with description: ' . $description);
+
+        return $this;
+    }
+
+    /**
+     * Clear all content images.
+     */
+    public function clearContentImages(): self
+    {
+        $this->imagesContent = [];
+        $this->logger?->debug('Content images cleared.');
+
+        return $this;
+    }
+
+    /**
      * Generate an image based on first image style and next images as content.
      */
-    public function generate(array $imageUrls, string $userPrompt = '', array $options = []): ?string
+    public function generate(string $userPrompt = '', array $options = []): ?string
     {
         $this->loadOptions($options);
 
-        $prompt = 'Generate an image from the second (and next) images, in the style of the first image. ';
-        $prompt .= 'On final image must be content from second image: ';
-        $prompt .= $userPrompt;
+        // Prepare image URLs in correct order
+        $imageNumber = 1;
+        $imageUrls[] = $this->imageStyle;
+        $prompt = 'Image number ' . $imageNumber . ' is for style. ';
+        foreach ($this->imagesContent as $imageContent) {
+            $imageNumber++;
+            if ($imageContent['description'] === '') {
+                continue;
+            }
+            $prompt .= 'Image number ' . $imageNumber . ' represents: ' . $imageContent['description'] . '. ';
+        }
+
+        // Set default prompt
+        $prompt .= 'Generate an image from the second (and following) images, in the style of the first image. ';
+        $prompt .= 'You must preserve the appearance and basic characteristics of the people/animals/creatures from the source images ';
+        $prompt .= 'The result must meet safety system standards. ';
+        $prompt .= 'This is about creating book illustrations - violence, love can be part of an educational story. ';
+        $prompt .= 'The final image must include content from the second and following images. ';
+
+        // Set user prompt
+        $prompt .= 'Final image content: ' . $userPrompt;
 
         // Request parameters
         $multipart = [

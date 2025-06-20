@@ -26,14 +26,12 @@ $apiKey = 'sk-...';
 $logger = new Logger('ai');
 $logger->pushHandler(new StreamHandler('php://stdout'));
 
-$ai = new AiGenerateImageByReference($apiKey, [], $logger);
+$ai = new AiGenerateImageByReference($apiKey, $logger);
 
-$imageUrls = [
-    '/path/to/reference-style.png',  // first image defines the style
-    '/path/to/content-image.png',    // content to be rendered
-];
-
-$generatedImageBase64 = $ai->generate($imageUrls, 'Add glasses to the person');
+$generatedImageBase64 = $ai
+    ->setStyleImage('/path/to/reference-style.png') // reference image for style
+    ->addContentImage('/path/to/content-image.png', 'Add glasses to the person') // content with description
+    ->generate('A sunny outdoor scene with the person reading a book.');
 
 if ($generatedImageBase64) {
     file_put_contents('output.png', base64_decode($generatedImageBase64));
@@ -50,21 +48,23 @@ You can pass a custom Guzzle client (e.g. with a mock handler for testing):
 use GuzzleHttp\Client;
 
 $customClient = new Client([...]);
-$ai = new AiGenerateImageByReference($apiKey, [], $logger, $customClient);
+$ai = new AiGenerateImageByReference($apiKey, $logger, $customClient);
 ```
 
 ---
 
 ## 🧰 Options (`$options`)
 
-You can pass options to the constructor or to `generate()`:
+Pass an options array to `generate()`:
 
-| Key           | Description                | Default Value        |
-|---------------|----------------------------|----------------------|
-| `MODEL`       | OpenAI model               | `gpt-image-1`        |
-| `SIZE`        | Image size                 | `1024x1024`          |
-| `N`           | Number of images           | `1`                  |
-| `BACKGROUND`  | Background (`transparent`, `opaque`, `auto`) | `transparent` |
+| Key          | Description                                  | Default Value |
+| ------------ | -------------------------------------------- | ------------- |
+| `MODEL`      | OpenAI model                                 | `gpt-image-1` |
+| `SIZE`       | Image size (`1024x1024`, etc.)               | `1024x1024`   |
+| `N`          | Number of images                             | `1`           |
+| `BACKGROUND` | Background (`transparent`, `opaque`, `auto`) | `transparent` |
+
+Unknown keys will be ignored with a warning if logger is set.
 
 ---
 
@@ -75,48 +75,14 @@ composer install
 vendor/bin/phpunit
 ```
 
-> Place your tests in the `tests/` directory, autoloaded via PSR-4.
-
-The class supports dependency injection of the HTTP client for testing:
-
-- Use Guzzle's `MockHandler` for fake responses
-- No real API calls needed in unit tests
+> All tests live in `tests/` and are PSR-4 autoloaded.\
+> Uses Guzzle's `MockHandler` for full offline test coverage.
 
 ---
 
 ## 🧼 Code Style
 
-This project uses **PHP-CS-Fixer** with PSR-12 and strict rules.  
-No need for extra installation — it's included in `composer install`.
-
-### ⚙️ Config
-
-The configuration is defined in `.php-cs-fixer.dist.php`:
-
-```php
-<?php
-
-$finder = PhpCsFixer\Finder::create()
-    ->in(__DIR__ . '/src')
-    ->in(__DIR__ . '/tests');
-
-return (new PhpCsFixer\Config())
-    ->setRiskyAllowed(true)
-    ->setRules([
-        '@PSR12' => true,
-        'strict_param' => true,
-        'array_syntax' => ['syntax' => 'short'],
-        'declare_strict_types' => true,
-        'no_unused_imports' => true,
-        'single_quote' => true,
-        'ordered_imports' => true,
-        'blank_line_after_namespace' => true,
-        'blank_line_after_opening_tag' => true,
-        'method_argument_space' => ['on_multiline' => 'ensure_fully_multiline'],
-        'phpdoc_align' => ['align' => 'left'],
-    ])
-    ->setFinder($finder);
-```
+This project uses **PHP-CS-Fixer** with strict PSR-12 rules.
 
 ### ▶️ Run it
 
@@ -124,7 +90,7 @@ return (new PhpCsFixer\Config())
 vendor/bin/php-cs-fixer fix
 ```
 
-> 💡 On PHP 8.4, you may need to prefix the command to suppress a version warning:
+> 💡 If you're on PHP 8.4 (or fighting entropy), run it with:
 >
 > ```bash
 > PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix
@@ -134,10 +100,11 @@ vendor/bin/php-cs-fixer fix
 
 ## 🧠 How It Works
 
-- The first image in `$imageUrls` is used as the style reference.
-- All other images define the content.
-- Uses `multipart/form-data` to communicate with the API.
-- Returns a base64-encoded image.
+- First image set via `setStyleImage()` defines the visual style.
+- Additional images via `addContentImage()` define the content (e.g. characters).
+- Prompt describes final composition.
+- Uses `multipart/form-data` to call OpenAI API.
+- Returns base64-encoded image.
 
 ---
 
@@ -152,10 +119,47 @@ vendor/bin/php-cs-fixer fix
 
 ## 📬 Want to contribute?
 
-Feel free to open an issue or PR. Or send a handwritten letter with a pencil – just for the vibe.
+Sure, fork it. Or open a PR.\
+Or just write a poem about AI and post it on your fridge. We approve.
 
 ---
 
 ## ☕ License
 
-MIT. Modify, throw away, or launch it to Mars.
+MIT. Hack it, fork it, print it on a mug.
+
+---
+
+## 🧪 Real-World Example
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\OpenAi\Tool;
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+use AiGenerateImageByReference\AiGenerateImageByReference;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+
+$apiKey = 'sk-your-real-key';
+
+$logger = new Logger('ai');
+$logger->pushHandler(new StreamHandler('php://stdout'));
+
+$ai = new AiGenerateImageByReference($apiKey, $logger);
+
+$generatedImageBase64 = $ai
+    ->setStyleImage('style.png')
+    ->addContentImage('tyna.png', 'girl named Tina')
+    ->addContentImage('fredy.png', 'boy named Fredy')
+    ->generate('Fredy and Tina in a park on a sunny day with blue sky – Fredy is riding a bicycle');
+
+if ($generatedImageBase64) {
+    file_put_contents('output.png', base64_decode($generatedImageBase64));
+}
+```
+

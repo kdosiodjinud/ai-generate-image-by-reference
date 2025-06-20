@@ -23,7 +23,16 @@ class AiGenerateImageByReferenceTest extends TestCase
         $mock = new MockHandler($responses);
         $handlerStack = HandlerStack::create($mock);
         $handlerStack->push(Middleware::history($this->history));
+
         return new Client(['handler' => $handlerStack]);
+    }
+
+    private function createTempImage(string $content = 'image-content'): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'img');
+        file_put_contents($path, $content);
+
+        return $path;
     }
 
     public function testCanBeInstantiated(): void
@@ -35,8 +44,29 @@ class AiGenerateImageByReferenceTest extends TestCase
     public function testConstructorAcceptsLogger(): void
     {
         $logger = $this->createMock(LoggerInterface::class);
-        $instance = new AiGenerateImageByReference($this->fakeApiKey, [], $logger);
+        $client = $this->createMockedClient([]);
+        $instance = new AiGenerateImageByReference($this->fakeApiKey, $logger, $client);
         $this->assertInstanceOf(AiGenerateImageByReference::class, $instance);
+    }
+
+    public function testSetStyleImage(): void
+    {
+        $ai = new AiGenerateImageByReference($this->fakeApiKey);
+        $path = $this->createTempImage();
+        $result = $ai->setStyleImage($path);
+        $this->assertInstanceOf(AiGenerateImageByReference::class, $result);
+        unlink($path);
+    }
+
+    public function testAddContentImageAndClear(): void
+    {
+        $ai = new AiGenerateImageByReference($this->fakeApiKey);
+        $path = $this->createTempImage();
+        $result = $ai->addContentImage($path, 'A beautiful flower');
+        $this->assertInstanceOf(AiGenerateImageByReference::class, $result);
+
+        $ai->clearContentImages();
+        unlink($path);
     }
 
     public function testGenerateReturnsNullOnInvalidJson(): void
@@ -44,18 +74,16 @@ class AiGenerateImageByReferenceTest extends TestCase
         $client = $this->createMockedClient([
             new Response(200, [], 'not-json'),
         ]);
-
         $logger = $this->createMock(LoggerInterface::class);
-        $ai = new AiGenerateImageByReference($this->fakeApiKey, [], $logger, $client);
+        $ai = new AiGenerateImageByReference($this->fakeApiKey, $logger, $client);
 
-        $tempFile1 = tempnam(sys_get_temp_dir(), 'img');
-        file_put_contents($tempFile1, 'image-data');
+        $styleImage = $this->createTempImage();
+        $ai->setStyleImage($styleImage);
+        $ai->addContentImage($styleImage, 'desc');
 
-        $result = $ai->generate([$tempFile1], 'test prompt');
-
-        unlink($tempFile1);
-
+        $result = $ai->generate('Prompt here');
         $this->assertNull($result);
+        unlink($styleImage);
     }
 
     public function testGenerateReturnsBase64Image(): void
@@ -66,20 +94,42 @@ class AiGenerateImageByReferenceTest extends TestCase
         ]);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $ai = new AiGenerateImageByReference($this->fakeApiKey, [], $logger, $client);
+        $ai = new AiGenerateImageByReference($this->fakeApiKey, $logger, $client);
 
-        $tempFile1 = tempnam(sys_get_temp_dir(), 'img');
-        file_put_contents($tempFile1, 'image-1');
+        $styleImage = $this->createTempImage();
+        $contentImage = $this->createTempImage();
 
-        $tempFile2 = tempnam(sys_get_temp_dir(), 'img');
-        file_put_contents($tempFile2, 'image-2');
+        $ai->setStyleImage($styleImage);
+        $ai->addContentImage($contentImage, 'a sleepy dragon');
 
-        $result = $ai->generate([$tempFile1, $tempFile2], 'draw me like one of your French cats');
-
-        unlink($tempFile1);
-        unlink($tempFile2);
-
+        $result = $ai->generate('dragon in a castle');
         $this->assertIsString($result);
         $this->assertEquals($base64, $result);
+
+        unlink($styleImage);
+        unlink($contentImage);
+    }
+
+    public function testGenerateWithUnknownOptions(): void
+    {
+        $base64 = base64_encode('another-fake-image');
+        $client = $this->createMockedClient([
+            new Response(200, [], json_encode(['data' => [['b64_json' => $base64]]])),
+        ]);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $ai = new AiGenerateImageByReference($this->fakeApiKey, $logger, $client);
+
+        $styleImage = $this->createTempImage();
+        $contentImage = $this->createTempImage();
+
+        $ai->setStyleImage($styleImage)
+            ->addContentImage($contentImage, 'robot dog');
+
+        $result = $ai->generate('cool dog', ['FOO' => 'bar']); // FOO is unknown option
+        $this->assertIsString($result);
+
+        unlink($styleImage);
+        unlink($contentImage);
     }
 }
